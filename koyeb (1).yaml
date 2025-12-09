@@ -1,0 +1,48 @@
+name: telegram-bot
+services:
+  - name: bot-service
+    env:
+      - name: TELEGRAM_BOT_TOKEN
+        secret: true
+      - name: BASE44_API_KEY
+        secret: true
+      - name: BASE_URL
+        value: https://app.base44.com/api/
+      - name: PORT
+        value: "8080"  # Для health сервера
+    ports:
+      - port: 8080
+        protocol: http
+    healthcheck:
+      http:
+        path: /health
+        port: 8080
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      initial_delay: 10s
+    routes:
+      - port: 8080
+        path: /
+        protocol: http
+
+workflows:
+  - name: keep-bot-alive
+    schedule:
+      - cron: "*/10 * * * *"  # Каждые 10 минут
+    jobs:
+      - name: ping-bot-service
+        steps:
+          - name: Health check ping
+            run:
+              container:
+                image: curlimages/curl:latest
+                args:
+                  - "-s"
+                  - "-o"
+                  - "/dev/null"
+                  - "-w"
+                  - "Status: %{http_code}"
+                  - "--max-time"
+                  - "15"
+                  - "http://${KOYEB_SERVICE_DOMAIN}:8080/health"
